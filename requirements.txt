@@ -1,0 +1,5 @@
+browsermob-proxy==0.8.0
+click==6.7
+haralyzer==1.5.0
+selenium==3.14.0
+xvfbwrapper==0.2.9

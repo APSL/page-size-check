@@ -1,6 +1,7 @@
 from browsermobproxy import Server
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from xvfbwrapper import Xvfb
 
 import click
@@ -53,7 +54,13 @@ def run(sitemap_url, verbose, browsermob_server_path, firefox_driver_path):
     try:
         for url in sitemap_urls:
             proxy.new_har()
-            driver.get(url)
+            try:
+                driver.get(url)
+            except TimeoutException:
+                file_error_name = "./{}-errors.txt".format(sitemap_url.replace("/", "-"))
+                with open(file_error_name, 'a+') as file:
+                    file.write("{}\n".format(url))
+                continue
 
             har_file_parser = HarFileParser(url, proxy, verbose)
             entries_resume, total_page_size = har_file_parser.parse_log_entries()

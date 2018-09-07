@@ -1,81 +1,71 @@
 from browsermobproxy import Server
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from xvfbwrapper import Xvfb
 
 import click
-import sys
+import requests
 
 from parser import HarFileParser
 
 
-@click.command()
-@click.option('--verbose', default=False, help='Verbose mode.')
-def run(verbose):
-    display, server, proxy, driver = start_server_proxy_driver()
-
-    try:
-        proxy.new_har()
-        driver.get("https://www.houmhotels.com/es/hoteles/houm-nets/galeria/")
-
-        har_file_parser = HarFileParser(proxy)
-        entries_resume, total_page_size = har_file_parser.parse_log_entries()
-
-        finish_time, dom_content_loaded, load_time = get_pages_load_times(driver, har_file_parser)
-        show_results(entries_resume, verbose, har_file_parser.num_entries, total_page_size, finish_time,
-                     dom_content_loaded, load_time)
-    except Exception as ex:
-        raise ex
-    finally:
-        driver.quit()
-        server.stop()
-        display.stop()
-
-
-def start_server_proxy_driver():
+def start_server_proxy_driver(browsermob_server_path, firefox_driver_path):
+    # Start
     display = Xvfb()
     display.start()
 
-    server = Server(path="./browsermob-proxy-2.1.4/bin/browsermob-proxy",
-                    options={'port': 8090})
+    server = Server(path=browsermob_server_path, options={'port': 8090})
     server.start()
     proxy = server.create_proxy()
 
     profile = webdriver.FirefoxProfile()
     selenium_proxy = proxy.selenium_proxy()
     profile.set_proxy(selenium_proxy)
-    driver = webdriver.Firefox(firefox_profile=profile, executable_path="./geckodriver")
+    driver = webdriver.Firefox(firefox_profile=profile, executable_path=firefox_driver_path)
 
     return display, server, proxy, driver
 
 
-def get_pages_load_times(driver, har_file_parser):
-    finish_time = har_file_parser.finish_time
-    dom_content_loaded = driver.execute_script(
-            'return window.performance.timing.domContentLoadedEventStart - window.performance.timing.navigationStart;')
+def get_sitemap_urls(sitemap_url):
+    if not sitemap_url:
 
-    load_time = har_file_parser.har_page.get_load_time()
-    return finish_time, dom_content_loaded, load_time
+        return []
+    # Get the sitemap and parse it to get the urls
+    urls = []
+    sitemap_xml = requests.get(sitemap_url).text
+    soup = BeautifulSoup(sitemap_xml)
+    for loc in soup.findAll("loc"):
+        urls.append(loc.text)
+    return urls
 
 
-def show_results(entries_resume, verbose, num_entries, total_page_size, finish_time, dom_content_loaded, load_time):
-    for mime_type, entries in entries_resume.items():
-        average_size = round(entries['total_size']/len(entries['entries']), 3)
-        average_time = round(entries['total_time']/len(entries['entries']), 3)
+@click.command()
+@click.option('--verbose/--no-verbose', default=False, help='Verbose mode.')
+@click.option('--browsermob_server_path', default='./browsermob-proxy-2.1.4/bin/browsermob-proxy',
+              help='Browsermob Server Path.')
+@click.option('--firefox_driver_path', default='./geckodriver', help='Firefox Driver Path.')
+@click.option('--sitemap_url', help='Sitemap to get urls.')
+def run(sitemap_url, verbose, browsermob_server_path, firefox_driver_path):
+    sitemap_urls = get_sitemap_urls(sitemap_url)
 
-        if not verbose:
-            sys.stdout.write("Mimetype: {} - Nº of entries: {} - Total size: {}MB - Average size: {}MB - "
-                             "Total time: {}ms - Average time: {}ms\n".format(mime_type, len(entries['entries']),
-                                                                              round(entries['total_size'], 3),
-                                                                              average_size, entries['total_time'],
-                                                                              average_time))
-        else:
-            for entry in entries['entries']:
-                sys.stdout.write("Mimetype: {} - Url: {} - Size: {}MB - Time: {}ms\n".format(
-                    mime_type, entry['url'], entry['total_size'], entry['time']))
+    display, server, proxy, driver = start_server_proxy_driver(browsermob_server_path, firefox_driver_path)
 
-    sys.stdout.write("Total size of page: {}MB - Number of entries: {}  - FinishTime: {}ms - DOMContentLoaded: {}ms"
-                     " - Load Time: {}ms\n".format(round(total_page_size, 3), num_entries, finish_time,
-                                                   dom_content_loaded, load_time))
+    try:
+        for url in sitemap_urls:
+            proxy.new_har()
+            driver.get(url)
+
+            har_file_parser = HarFileParser(url, proxy, verbose)
+            entries_resume, total_page_size = har_file_parser.parse_log_entries()
+
+            dom_content_loaded = har_file_parser.get_dom_content_loaded_time(driver)
+            har_file_parser.show_results(entries_resume, total_page_size, dom_content_loaded)
+    except Exception as ex:
+        raise ex
+    finally:
+        driver.quit()
+        server.stop()
+        display.stop()
 
 
 if __name__ == '__main__':

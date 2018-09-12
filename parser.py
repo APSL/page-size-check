@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from haralyzer import HarPage
 
+import csv
 import sys
 
 
@@ -92,10 +93,9 @@ class HarFileParser:
         sys.stdout.write("\033[0;0m")
 
         for mime_type, entries in entries_resume.items():
-            average_size = round(entries['total_size']/len(entries['entries']), 3)
-            average_time = round(entries['total_time']/len(entries['entries']), 3)
-
             if not self.verbose:
+                average_size = round(entries['total_size']/len(entries['entries']), 3)
+                average_time = round(entries['total_time']/len(entries['entries']), 3)
                 percentage_size = round((entries['total_size']/total_page_size) * 100, 3)
                 sys.stdout.write("Mimetype: {} - Nº of entries: {} - Total size: {}MB - Average size: {}MB - "
                                  "Percentage on page size: {}% - Total time: {}ms - Average time: {}ms\n".format(
@@ -105,3 +105,52 @@ class HarFileParser:
                 for entry in entries['entries']:
                     sys.stdout.write("Mimetype: {} - Url: {} - Size: {}MB - Time: {}ms\n".format(
                         mime_type, entry['url'], entry['total_size'], entry['time']))
+
+    def initial_csv(self, csv_file, field_names, total_page_size, dom_content_loaded):
+        writer = csv.DictWriter(csv_file, fieldnames=field_names)
+        writer.writerow({})
+        writer.writerow({'mime_type': self.url})
+
+        first_line = "Total size of page: {}MB - Number of entries: {}  - FinishTime: {}ms - "
+        first_line += "DOMContentLoaded: {}ms - Load Time: {}ms"
+
+        first_line = first_line.format(round(total_page_size, 3), self.num_entries, self.finish_time,
+                                       dom_content_loaded, self.load_time)
+
+        writer.writerow({'mime_type': first_line})
+        writer.writeheader()
+        return writer
+
+    def write_noverbose_to_csv(self, entries_resume, total_page_size, dom_content_loaded, sitemap_url):
+        with open('{}.csv'.format(sitemap_url.replace("/", "-")), 'a+', newline='') as csv_file:
+            field_names = ['mime_type', 'n_entries', 'total_size', 'average_size', 'percentage_size',
+                           'total_time', 'average_time']
+            writer = self.initial_csv(csv_file, field_names, total_page_size, dom_content_loaded)
+
+            for mime_type, entries in entries_resume.items():
+                average_size = round(entries['total_size']/len(entries['entries']), 3)
+                average_time = round(entries['total_time']/len(entries['entries']), 3)
+                percentage_size = round((entries['total_size']/total_page_size) * 100, 3)
+                writer.writerow({
+                    'mime_type': mime_type,
+                    'n_entries': len(entries['entries']),
+                    'total_size': round(entries['total_size'], 3),
+                    'average_size': average_size,
+                    'percentage_size': percentage_size,
+                    'total_time': entries['total_time'],
+                    'average_time': average_time
+                })
+
+    def write_verbose_to_csv(self, entries_resume, total_page_size, dom_content_loaded, sitemap_url):
+        with open('{}.csv'.format(sitemap_url.replace("/", "-")), 'a+', newline='') as csv_file:
+            field_names = ['mime_type', 'url', 'size', 'time']
+            writer = self.initial_csv(csv_file, field_names, total_page_size, dom_content_loaded)
+
+            for mime_type, entries in entries_resume.items():
+                for entry in entries['entries']:
+                    writer.writerow({
+                        'mime_type': mime_type,
+                        'url': entry['url'],
+                        'size': round(entry['total_size'], 3),
+                        'time': round(entry['time'], 3)}
+                    )

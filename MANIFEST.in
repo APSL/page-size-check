@@ -1,0 +1,4 @@
+include LICENSE
+include CHANGELOG
+include README.rst
+recursive-include page_size_check *

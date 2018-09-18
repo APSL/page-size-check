@@ -110,6 +110,7 @@ class HarFileParser:
         writer = csv.DictWriter(csv_file, fieldnames=field_names)
         writer.writerow({})
         writer.writerow({'mime_type': self.url})
+        sys.stdout.write("URL: {}\n".format(self.url))
 
         first_line = "Total size of page: {}MB - Number of entries: {}  - FinishTime: {}ms - "
         first_line += "DOMContentLoaded: {}ms - Load Time: {}ms"

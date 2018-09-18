@@ -10,7 +10,7 @@ import click
 import requests
 import threading
 
-from page_size_check.parser import HarFileParser
+from parser import HarFileParser
 
 
 def start_server_display(browsermob_server_path):

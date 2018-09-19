@@ -43,7 +43,7 @@ class HarFileParser:
 
         for entry in self.log_entries:
 
-            mime_type = entry['response']['content']['mimeType']
+            mime_type = entry['response']['content']['mimeType'].split(";")[0]
 
             if mime_type not in entries_resume:
                 entries_resume[mime_type] = {}

@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 from haralyzer import HarPage
+from urllib.parse import urlparse
 
 import csv
-import sys
+import os.path
 
 
 class HarFileParser:
@@ -11,19 +12,18 @@ class HarFileParser:
     har_page = None
     lower_datetime = None
     higher_datetime = None
-    verbose = False
+    sitemap_domain = ""
 
-    def __init__(self, url, proxy, verbose):
+    def __init__(self, url, proxy, sitemap_url):
         self.url = url
         if proxy.har['log']['entries']:
             self.log_entries = proxy.har['log']['entries']
         page_id = proxy.har['log']['pages'][0].get('id')
         if page_id:
             self.har_page = HarPage(page_id, har_data=proxy.har)
-        if verbose:
-            self.verbose = True
         self.lower_datetime = datetime.now() + timedelta(hours=1)
         self.higher_datetime = datetime.now() - timedelta(hours=1)
+        self.sitemap_domain = urlparse(sitemap_url).netloc
 
     @property
     def num_entries(self):
@@ -83,56 +83,26 @@ class HarFileParser:
                  ' - window.performance.timing.navigationStart;'
         return driver.execute_script(script)
 
-    def show_results(self, entries_resume, total_page_size, dom_content_loaded):
-        offset = "\n\n\n"
-        sys.stdout.write("\033[1;31m {}Url: {}\n".format(offset, self.url))
-        sys.stdout.write("Total size of page: {}MB - Number of entries: {}  - FinishTime: {}ms - "
-                         "DOMContentLoaded: {}ms - Load Time: {}ms\n".format(
-                          round(total_page_size, 3), self.num_entries, self.finish_time, dom_content_loaded,
-                          self.load_time))
-        sys.stdout.write("\033[0;0m")
+    @staticmethod
+    def check_file_existence(file_path):
+        return os.path.isfile(file_path)
 
-        for mime_type, entries in entries_resume.items():
-            if not self.verbose:
-                average_size = round(entries['total_size']/len(entries['entries']), 3)
-                average_time = round(entries['total_time']/len(entries['entries']), 3)
-                percentage_size = round((entries['total_size']/total_page_size) * 100, 3)
-                sys.stdout.write("Mimetype: {} - Nº of entries: {} - Total size: {}MB - Average size: {}MB - "
-                                 "Percentage on page size: {}% - Total time: {}ms - Average time: {}ms\n".format(
-                                  mime_type, len(entries['entries']), round(entries['total_size'], 3), average_size,
-                                  percentage_size, entries['total_time'], average_time))
-            else:
-                for entry in entries['entries']:
-                    sys.stdout.write("Mimetype: {} - Url: {} - Size: {}MB - Time: {}ms\n".format(
-                        mime_type, entry['url'], entry['total_size'], entry['time']))
-
-    def initial_csv(self, csv_file, field_names, total_page_size, dom_content_loaded):
-        writer = csv.DictWriter(csv_file, fieldnames=field_names)
-        writer.writerow({})
-        writer.writerow({'mime_type': self.url})
-        sys.stdout.write("URL: {}\n".format(self.url))
-
-        first_line = "Total size of page: {}MB - Number of entries: {}  - FinishTime: {}ms - "
-        first_line += "DOMContentLoaded: {}ms - Load Time: {}ms"
-
-        first_line = first_line.format(round(total_page_size, 3), self.num_entries, self.finish_time,
-                                       dom_content_loaded, self.load_time)
-
-        writer.writerow({'mime_type': first_line})
-        writer.writeheader()
-        return writer
-
-    def write_noverbose_to_csv(self, entries_resume, total_page_size, dom_content_loaded, sitemap_url):
-        with open('{}.csv'.format(sitemap_url.replace("/", "-")), 'a+', newline='') as csv_file:
-            field_names = ['mime_type', 'n_entries', 'total_size', 'average_size', 'percentage_size',
+    def mimetype_resources_to_csv(self, entries_resume, total_page_size):
+        file_path = '{}-mimetype-resources.csv'.format(self.sitemap_domain)
+        file_exists = self.check_file_existence(file_path)
+        with open(file_path, 'a+', newline='') as csv_file:
+            field_names = ['page_url', 'mime_type', 'n_entries', 'total_size', 'average_size', 'percentage_size',
                            'total_time', 'average_time']
-            writer = self.initial_csv(csv_file, field_names, total_page_size, dom_content_loaded)
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            if not file_exists:
+                writer.writeheader()
 
             for mime_type, entries in entries_resume.items():
                 average_size = round(entries['total_size']/len(entries['entries']), 3)
                 average_time = round(entries['total_time']/len(entries['entries']), 3)
                 percentage_size = round((entries['total_size']/total_page_size) * 100, 3)
                 writer.writerow({
+                    'page_url': self.url,
                     'mime_type': mime_type,
                     'n_entries': len(entries['entries']),
                     'total_size': round(entries['total_size'], 3),
@@ -142,16 +112,38 @@ class HarFileParser:
                     'average_time': average_time
                 })
 
-    def write_verbose_to_csv(self, entries_resume, total_page_size, dom_content_loaded, sitemap_url):
-        with open('{}.csv'.format(sitemap_url.replace("/", "-")), 'a+', newline='') as csv_file:
-            field_names = ['mime_type', 'url', 'size', 'time']
-            writer = self.initial_csv(csv_file, field_names, total_page_size, dom_content_loaded)
+    def resources_to_csv(self, entries_resume):
+        file_path = '{}-resources-list.csv'.format(self.sitemap_domain)
+        file_exists = self.check_file_existence(file_path)
+        with open(file_path, 'a+', newline='') as csv_file:
+            field_names = ['page_url', 'resource_url', 'mime_type', 'size', 'time']
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            if not file_exists:
+                writer.writeheader()
 
             for mime_type, entries in entries_resume.items():
                 for entry in entries['entries']:
                     writer.writerow({
+                        'page_url': self.url,
                         'mime_type': mime_type,
-                        'url': entry['url'],
+                        'resource_url': entry['url'],
                         'size': round(entry['total_size'], 3),
                         'time': round(entry['time'], 3)}
                     )
+
+    def resume_to_csv(self, total_page_size, dom_content_loaded):
+        file_path = '{}-resume-urls.csv'.format(self.sitemap_domain)
+        file_exists = self.check_file_existence(file_path)
+        with open(file_path, 'a+', newline='') as csv_file:
+            field_names = ['page_url', 'num_entries', 'total_size', 'finish_time', 'domcontent_loaded', 'load_time']
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow({
+                'page_url': self.url,
+                'num_entries': self.num_entries,
+                'total_size': round(total_page_size, 3),
+                'finish_time': self.finish_time,
+                'domcontent_loaded': dom_content_loaded,
+                'load_time': self.load_time,
+            })

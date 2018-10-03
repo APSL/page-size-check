@@ -12,3 +12,7 @@ Changelog
 0.1.2 (2018-09-19)
 ------------------
 * Improve mimetype aggregation
+
+0.2.0 (2018-10-03)
+------------------
+* Improve data output

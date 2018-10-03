@@ -1,3 +1,3 @@
 __author__ = 'Carlos Salom'
 __email__ = 'csalom@apsl.net'
-__version__ = '0.1.2'
+__version__ = '0.2.0'

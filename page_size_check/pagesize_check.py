@@ -89,21 +89,7 @@ def execute_parser(url_info):
 def run(sitemap_url, browsermob_server_path, firefox_driver_path, threads):
 
     display, server = start_server_display(browsermob_server_path)
-    # sitemap_urls = get_sitemap_urls(sitemap_url, server, firefox_driver_path)
-    sitemap_urls = [
-        {
-            'page_url': "http://www.apsl.net/blog/decoradores-en-python/",
-            'server': server,
-            'firefox_driver_path': firefox_driver_path,
-            'sitemap_url': sitemap_url,
-        },
-        {
-            'page_url': "http://www.apsl.net/blog/com-programar-un-bot-de-telegram-amb-python/",
-            'server': server,
-            'firefox_driver_path': firefox_driver_path,
-            'sitemap_url': sitemap_url,
-        },
-    ]
+    sitemap_urls = get_sitemap_urls(sitemap_url, server, firefox_driver_path)
 
     try:
         with ThreadPoolExecutor(max_workers=threads) as executor:

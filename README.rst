@@ -54,13 +54,11 @@ Usage
 As was showned before, you can execute the script doing :code:`python page_size_check.py --help` to see all the
 parameters that you can set:
 
-.. code-block:: bash
-    --browsermob_server_path TEXT  Browsermob Server Path.
-    --firefox_driver_path TEXT     Firefox Driver Path.
-    --sitemap_url TEXT             Sitemap to get urls.
-    --threads INTEGER              Number of threads.
-    --help                         Show this message and exit.
-
+--browsermob_server_path TEXT  Browsermob Server Path.
+--firefox_driver_path TEXT     Firefox Driver Path.
+--sitemap_url TEXT             Sitemap to get urls.
+--threads INTEGER              Number of threads.
+--help                         Show this message and exit.
 
 Contributing
 ------------

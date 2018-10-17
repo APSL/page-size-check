@@ -14,7 +14,7 @@ Installation and run
 
 #. Clone project from repo ::
 
-    git clone git@gitlab.apsl.net:apsl/page-size-check.git
+    git clone git@github.com:APSL/page-size-check.git
 
 #. Setup virtualenv Python ::
 

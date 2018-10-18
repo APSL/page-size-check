@@ -48,3 +48,6 @@ browsermob-proxy-2.1.4/
 
 *.csv
 *.txt
+.pytest_cache/
+page_size_check.egg-info/
+.tox/

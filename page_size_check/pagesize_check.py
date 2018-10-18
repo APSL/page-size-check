@@ -66,8 +66,7 @@ def execute_parser(url_info):
         with threading.Lock():
             with open(file_error_name, 'a+') as file:
                 file.write("{}\n".format(page_url))
-
-    har_file_parser = HarFileParser(page_url, proxy, sitemap_url)
+    har_file_parser = HarFileParser(page_url, proxy.har, sitemap_url)
     entries_resume, total_page_size = har_file_parser.parse_log_entries()
 
     dom_content_loaded = har_file_parser.get_dom_content_loaded_time(driver)

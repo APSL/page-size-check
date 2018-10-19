@@ -631,3 +631,13 @@ def fix_entries_resume():
 @pytest.fixture()
 def fix_total_page_size():
     return 0.8981132507324219
+
+
+@pytest.fixture()
+def fix_numentries():
+    return 35
+
+
+@pytest.fixture()
+def fix_load_time():
+    return 2874

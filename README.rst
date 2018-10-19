@@ -70,7 +70,7 @@ before you submit a pull request.
 License
 -------
 
-Distributed under the terms of the `MIT`_ license, "wagtail_jsonschema_forms" is free and open source software
+Distributed under the terms of the `MIT`_ license, "page-size-check" is free and open source software
 
 
 Issues

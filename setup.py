@@ -35,14 +35,14 @@ def get_email(package):
 setup(
     name='page-size-check',
     version=get_version('page_size_check'),
-    description='Generate JsonSchema Forms from Wagtail\'s forms and validate it',
+    description='Utility to check the size of pages from a sitemap and its resources parsering the HAR file of request',
     long_description=codecs.open(os.path.join(os.path.dirname(__file__), 'README.rst'), encoding='utf-8').read(),
     author=get_author('page_size_check'),
     author_email=get_email('page_size_check'),
     maintainer=get_author('page_size_check'),
     maintainer_email=get_email('page_size_check'),
     license='MIT',
-    url='https://github.com/APSL/wagtail-jsonschema-forms',
+    url='https://github.com/APSL/page-size-check',
     packages=find_packages(),
     install_requires=[
         'beautifulsoup4==4.6.3',
@@ -60,7 +60,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Operating System :: OS Independent',
-        'Topic :: Software Development'
+        'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ]
 )

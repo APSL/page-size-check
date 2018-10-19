@@ -2,5 +2,11 @@ beautifulsoup4==4.6.3
 browsermob-proxy==0.8.0
 click==6.7
 haralyzer==1.5.0
+pytest==3.9.1
+pytest-eradicate==0.0.3
+pytest-flake8==1.0.2
+pytest-splinter==2.0.0
+pytest-sugar==0.9.1
 selenium==3.14.0
 xvfbwrapper==0.2.9
+tox==3.5.2

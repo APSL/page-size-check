@@ -14,13 +14,13 @@ class HarFileParser:
     higher_datetime = None
     sitemap_domain = ""
 
-    def __init__(self, url, proxy, sitemap_url):
+    def __init__(self, url, har_file, sitemap_url):
         self.url = url
-        if proxy.har['log']['entries']:
-            self.log_entries = proxy.har['log']['entries']
-        page_id = proxy.har['log']['pages'][0].get('id')
+        if har_file['log']['entries']:
+            self.log_entries = har_file['log']['entries']
+        page_id = har_file['log']['pages'][0].get('id')
         if page_id:
-            self.har_page = HarPage(page_id, har_data=proxy.har)
+            self.har_page = HarPage(page_id, har_data=har_file)
         self.lower_datetime = datetime.now() + timedelta(hours=1)
         self.higher_datetime = datetime.now() - timedelta(hours=1)
         self.sitemap_domain = urlparse(sitemap_url).netloc

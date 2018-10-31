@@ -62,5 +62,10 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules'
-    ]
+    ],
+    entry_points={
+        'console_scripts': [
+            'page_size_check = page_size_check.pagesize_check:run',
+        ]
+    }
 )

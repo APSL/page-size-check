@@ -1,9 +1,13 @@
+import sys
 from datetime import datetime, timedelta
 from haralyzer import HarPage
 from urllib.parse import urlparse
 
 import csv
 import os.path
+
+
+class HarFile:
 
 
 class HarFileParser:
@@ -50,8 +54,7 @@ class HarFileParser:
                 entries_resume[mime_type]['entries'] = []
                 entries_resume[mime_type]['total_size'] = 0
                 entries_resume[mime_type]['total_time'] = 0
-
-            started_date_time = datetime.strptime(entry['startedDateTime'].rsplit("+", 1)[0], "%Y-%m-%dT%H:%M:%S.%f")
+            started_date_time = datetime.strptime(entry['startedDateTime'].rsplit("+", 1)[0], "%Y-%m-%dT%H:%M:%S.%fZ")
 
             if started_date_time < self.lower_datetime:
                 self.lower_datetime = started_date_time
@@ -93,7 +96,7 @@ class HarFileParser:
         with open(file_path, 'a+', newline='') as csv_file:
             field_names = ['page_url', 'mime_type', 'n_entries', 'total_size', 'average_size', 'percentage_size',
                            'total_time', 'average_time']
-            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            writer = csv.DictWriter(sys.stdout, fieldnames=field_names)
             if not file_exists:
                 writer.writeheader()
 
@@ -117,7 +120,7 @@ class HarFileParser:
         file_exists = self.check_file_existence(file_path)
         with open(file_path, 'a+', newline='') as csv_file:
             field_names = ['page_url', 'resource_url', 'mime_type', 'size', 'time']
-            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            writer = csv.DictWriter(sys.stdout, fieldnames=field_names)
             if not file_exists:
                 writer.writeheader()
 
@@ -136,7 +139,7 @@ class HarFileParser:
         file_exists = self.check_file_existence(file_path)
         with open(file_path, 'a+', newline='') as csv_file:
             field_names = ['page_url', 'num_entries', 'total_size', 'finish_time', 'domcontent_loaded', 'load_time']
-            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            writer = csv.DictWriter(sys.stdout, fieldnames=field_names)
             if not file_exists:
                 writer.writeheader()
             writer.writerow({

@@ -51,7 +51,7 @@ setup(
         'haralyzer==1.5.0',
         'selenium==3.14.0',
         'xvfbwrapper==0.2.9',
-        'PTable==1.0.0'
+        'PTable==0.9.2'
     ],
     classifiers=[
         'Environment :: Console',

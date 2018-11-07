@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 def start_server_display(browsermob_server_path, browsermob_server_port):
+    """
+    TODO: document
+    """
     logger.info("Running BrowserMob server...")
     display = Xvfb()
     display.start()
@@ -26,17 +29,23 @@ def start_server_display(browsermob_server_path, browsermob_server_port):
 
 
 def start_proxy_driver(server, firefox_driver_path):
+    """
+    TODO: document
+    """
     proxy = server.create_proxy()
 
     profile = webdriver.FirefoxProfile()
     selenium_proxy = proxy.selenium_proxy()
-    profile.set_proxy(selenium_proxy)
+    profile.set_proxy(selenium_proxy)  # TODO: check deprecation
     driver = webdriver.Firefox(firefox_profile=profile, executable_path=firefox_driver_path)
 
     return proxy, driver
 
 
 def get_sitemap_urls(sitemap_url, server, firefox_driver_path):
+    """
+    TODO: document
+    """
     logger.info("Getting sitemap entries for \"{}\"".format(sitemap_url))
     if not sitemap_url:
         return []
@@ -67,7 +76,7 @@ def execute_parser(results, url_info):
     try:
         logger.info("Processing \"{}\"".format(page_url))
         driver.get(page_url)
-    except TimeoutException:
+    except TimeoutException:  # TODO: change with retry policy
         driver.quit()
         logger.error("Error processing \"{}\" url".format(page_url))
 
@@ -87,8 +96,9 @@ def execute_parser(results, url_info):
 @click.option('--firefox_driver_path', default='./geckodriver', help='Firefox driver path.',
               envvar='FIREFOX_DRIVER_PATH')
 @click.option('--sitemap_url', help='Sitemap to get urls.')
-@click.option('--threads', default=4, help='Number of threads.')
-def run(sitemap_url, browsermob_server_path, browsermob_server_port, firefox_driver_path, threads):
+@click.option('--threads', default=8, help='Number of threads.')
+@click.option('--display_summary', default=True, help='If true displays the results summary to the stdout.')
+def run(sitemap_url, browsermob_server_path, browsermob_server_port, firefox_driver_path, threads, display_summary):
     display, server = start_server_display(browsermob_server_path, browsermob_server_port)
     sitemap_urls = get_sitemap_urls(sitemap_url, server, firefox_driver_path)
     results = []
@@ -96,9 +106,9 @@ def run(sitemap_url, browsermob_server_path, browsermob_server_port, firefox_dri
         with ThreadPoolExecutor(max_workers=threads) as executor:
             executor.map(execute_parser, repeat(results), sitemap_urls)
         logger.info("URLs processed: {}".format(len(results)))
-        har_file_parser = HarFileParser()
-        har_file_parser.summary_results(results)
-        har_file_parser.summary_results(results)
+        if results:
+            har_file_parser = HarFileParser()
+            har_file_parser.get_summary(results, display_summary)
     except KeyboardInterrupt:
         logger.info("Stopping BrowserMob server...")
         server.stop()

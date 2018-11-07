@@ -1,48 +1,63 @@
 import sys
+import csv
 from datetime import datetime, timedelta
 from haralyzer import HarPage
 from urllib.parse import urlparse
-
-import csv
-import os.path
+from prettytable import from_csv, PrettyTable
 
 
 class HarFileData:
-    # url = ""
-    # log_entries = []
-    # har_page = None
-    # lower_datetime = None
-    # higher_datetime = None
-    # sitemap_domain = ""
-
-    # def __init__(self, url, har_file, sitemap_url):
-    #     self.url = url
-    #     if har_file['log']['entries']:
-    #         self.log_entries = har_file['log']['entries']
-    #     page_id = har_file['log']['pages'][0].get('id')
-    #     if page_id:
-    #         self.har_page = HarPage(page_id, har_data=har_file)
-    #     self.lower_datetime = datetime.now() + timedelta(hours=1)
-    #     self.higher_datetime = datetime.now() - timedelta(hours=1)
-    #     self.sitemap_domain = urlparse(sitemap_url).netloc
+    """
+    TODO: document
+    """
+    page_url = ""
+    log_entries = []
+    har_page = None
+    lower_datetime = None
+    higher_datetime = None
+    sitemap_domain = ""
+    entries_resume = {}
+    total_page_size = 0
+    dom_content_loaded = 0
 
     @property
     def num_entries(self):
+        """
+        TODO: document
+        """
         return len(self.log_entries)
 
     @property
     def finish_time(self):
+        """
+        TODO: document
+        """
         return (self.higher_datetime-self.lower_datetime).total_seconds() * 1000
 
     @property
     def load_time(self):
+        """
+        TODO: document
+        """
         return self.har_page.get_load_time()
 
 
 class HarFileParser:
+    """
+    TODO: document
+    """
 
     def _pre_parse(self, har_file_data, har_file, page_url, sitemap_url):
-        har_file_data.url = page_url
+        """
+        Prepare the data to be parsed
+
+        :param HarFileData har_file_data:
+        :param dict har_file:
+        :param str page_url:
+        :param str sitemap_url:
+        :return:
+        """
+        har_file_data.page_url = page_url
         if har_file['log']['entries']:
             har_file_data.log_entries = har_file['log']['entries']
         page_id = har_file['log']['pages'][0].get('id')
@@ -53,13 +68,21 @@ class HarFileParser:
         har_file_data.sitemap_domain = urlparse(sitemap_url).netloc
 
     def parse(self, har_file, page_url, sitemap_url, driver):
+        """
+        Parse HarFile to a HarFileData structure
+
+        :param dict har_file:
+        :param str page_url:
+        :param str sitemap_url:
+        :param webdriver.Firefox driver:
+        :return HarFileData:
+        """
         har_file_data = HarFileData()
         self._pre_parse(har_file_data, har_file, page_url, sitemap_url)
         entries_resume = {}
         total_page_size = 0
 
         for entry in har_file_data.log_entries:
-
             mime_type = entry['response']['content']['mimeType'].split(";")[0]
 
             if mime_type not in entries_resume:
@@ -78,8 +101,8 @@ class HarFileParser:
                 'url': entry['request']['url'],
                 'time': entry['time'],  # time in ms
                 'status': entry['response']['status'],
-                'body_size': entry['response']['bodySize'] / (1024 * 1024),  # size in MB
-                'headers_size': entry['response']['headersSize'] / (1024 * 1024),  # size in MB
+                'body_size': entry['response']['bodySize'] / 1024,  # size in KB
+                'headers_size': entry['response']['headersSize'] / 1024,  # size in KB
             }
             entry_info['total_size'] = entry_info['body_size'] + entry_info['headers_size']
 
@@ -89,22 +112,26 @@ class HarFileParser:
             entries_resume[mime_type]['total_time'] += entry_info['time']  # time in ms
             # se puede incluir desglose de tiempos:
             # blocked', 'ssl', 'connect', 'receive', 'send', 'comment', 'wait', 'dns'
-            total_page_size += entry_info['total_size']  # size in MB
+            total_page_size += entry_info['total_size']
         har_file_data.entries_resume = entries_resume
-        har_file_data.total_page_size = total_page_size
+        har_file_data.total_page_size = total_page_size / 1024  # size in MB
         har_file_data.dom_content_loaded = self._get_dom_content_loaded_time(driver)
         return har_file_data
 
     def _get_dom_content_loaded_time(self, driver):
+        """
+        TODO: document
+        :param driver:
+        :return:
+        """
         script = 'return window.performance.timing.domContentLoadedEventStart' \
                  ' - window.performance.timing.navigationStart;'
         return driver.execute_script(script)
 
-    @staticmethod
-    def check_file_existence(file_path):
-        return os.path.isfile(file_path)
-
     def mimetype_resources_to_csv(self, entries_resume, total_page_size):
+        """
+        TODO: review
+        """
         file_path = '{}-mimetype-resources.csv'.format(self.sitemap_domain)
         file_exists = self.check_file_existence(file_path)
         with open(file_path, 'a+', newline='') as csv_file:
@@ -130,6 +157,9 @@ class HarFileParser:
                 })
 
     def resources_to_csv(self, entries_resume):
+        """
+        TODO: review
+        """
         file_path = '{}-resources-list.csv'.format(self.sitemap_domain)
         file_exists = self.check_file_existence(file_path)
         with open(file_path, 'a+', newline='') as csv_file:
@@ -148,24 +178,56 @@ class HarFileParser:
                         'time': round(entry['time'], 3)}
                     )
 
-    def summary_results(self, results):
-        from prettytable import from_csv
-        file_path = 'resume-urls.csv'#.format(self.sitemap_domain)
-        file_exists = self.check_file_existence(file_path)
+    def get_summary(self, results, display_summary):
+        """
+        Get the summarized results: generate a CSV with this data and print the results to the
+        stdout if display_summary param is set to True.
+
+        :param list results: list of HarFileData
+        :param bool display_summary: If true displays the results summary to the stdout
+        """
+        file_path = '{}-resume-urls.csv'.format(results[0].sitemap_domain)
         with open(file_path, 'w') as csv_file:
-            field_names = ['page_url', 'num_entries', 'total_size', 'finish_time', 'domcontent_loaded', 'load_time']
+            # Prepare CSV file
+            field_names = ['page_url', 'num_entries', 'page_size (KB)', 'page_load_time (ms)',
+                           'total_size (MB)', 'total_load_time (ms)', 'finish_time (ms)', 'dom_load_time (ms)']
             writer = csv.DictWriter(csv_file, fieldnames=field_names)
-            if not file_exists:
-                writer.writeheader()
+            writer.writeheader()
+
+            # Totals
+            page_size_sum = 0
+            page_load_time_avg = 0
+            total_size_sum = 0
+            total_load_time_avg = 0
             for result in results:
+                page_size = round(result.entries_resume['text/html']['total_size'], 3)
                 writer.writerow({
-                    'page_url': result.url,
+                    'page_url': result.page_url,
                     'num_entries': result.num_entries,
-                    'total_size': round(result.total_page_size, 3),
-                    'finish_time': result.finish_time,
-                    'domcontent_loaded': result.dom_content_loaded,
-                    'load_time': result.load_time,
+                    'page_size (KB)': page_size,
+                    'page_load_time (ms)': result.entries_resume['text/html']['total_time'],
+                    'total_size (MB)': round(result.total_page_size, 3),
+                    'total_load_time (ms)': result.load_time,
+                    'finish_time (ms)': result.finish_time,
+                    'dom_load_time (ms)': result.dom_content_loaded,
                 })
-        with open(file_path, 'r') as csv_file:
-            mytable = from_csv(csv_file)
-            print(mytable)
+                page_size_sum += page_size
+                page_load_time_avg += result.entries_resume['text/html']['total_time']
+                total_size_sum += round(result.total_page_size, 3)
+                total_load_time_avg += result.load_time
+            page_size_sum = round(page_size_sum, 3)
+            page_load_time_avg = round(page_load_time_avg / len(results), 3)
+            total_load_time_avg = round(total_load_time_avg / len(results), 3)
+        if display_summary:
+            # Print the CSV in table format
+            with open(file_path, 'r') as csv_file:
+                summary_table = from_csv(csv_file)
+                print(summary_table)
+
+            # Print the totals in table format
+            totals_table = PrettyTable()
+            totals_table.field_names = ["page_size_sum (KB)", "page_load_time_avg (ms)", "total_size_sum (MB)",
+                                        "total_load_time_avg (ms)"]
+            totals_table.add_row([page_size_sum, page_load_time_avg, total_size_sum, total_load_time_avg])
+            print(totals_table)
+

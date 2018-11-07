@@ -7,27 +7,24 @@ import csv
 import os.path
 
 
-class HarFile:
+class HarFileData:
+    # url = ""
+    # log_entries = []
+    # har_page = None
+    # lower_datetime = None
+    # higher_datetime = None
+    # sitemap_domain = ""
 
-
-class HarFileParser:
-    url = ""
-    log_entries = []
-    har_page = None
-    lower_datetime = None
-    higher_datetime = None
-    sitemap_domain = ""
-
-    def __init__(self, url, har_file, sitemap_url):
-        self.url = url
-        if har_file['log']['entries']:
-            self.log_entries = har_file['log']['entries']
-        page_id = har_file['log']['pages'][0].get('id')
-        if page_id:
-            self.har_page = HarPage(page_id, har_data=har_file)
-        self.lower_datetime = datetime.now() + timedelta(hours=1)
-        self.higher_datetime = datetime.now() - timedelta(hours=1)
-        self.sitemap_domain = urlparse(sitemap_url).netloc
+    # def __init__(self, url, har_file, sitemap_url):
+    #     self.url = url
+    #     if har_file['log']['entries']:
+    #         self.log_entries = har_file['log']['entries']
+    #     page_id = har_file['log']['pages'][0].get('id')
+    #     if page_id:
+    #         self.har_page = HarPage(page_id, har_data=har_file)
+    #     self.lower_datetime = datetime.now() + timedelta(hours=1)
+    #     self.higher_datetime = datetime.now() - timedelta(hours=1)
+    #     self.sitemap_domain = urlparse(sitemap_url).netloc
 
     @property
     def num_entries(self):
@@ -41,11 +38,27 @@ class HarFileParser:
     def load_time(self):
         return self.har_page.get_load_time()
 
-    def parse_log_entries(self):
+
+class HarFileParser:
+
+    def _pre_parse(self, har_file_data, har_file, page_url, sitemap_url):
+        har_file_data.url = page_url
+        if har_file['log']['entries']:
+            har_file_data.log_entries = har_file['log']['entries']
+        page_id = har_file['log']['pages'][0].get('id')
+        if page_id:
+            har_file_data.har_page = HarPage(page_id, har_data=har_file)
+        har_file_data.lower_datetime = datetime.now() + timedelta(hours=1)
+        har_file_data.higher_datetime = datetime.now() - timedelta(hours=1)
+        har_file_data.sitemap_domain = urlparse(sitemap_url).netloc
+
+    def parse(self, har_file, page_url, sitemap_url, driver):
+        har_file_data = HarFileData()
+        self._pre_parse(har_file_data, har_file, page_url, sitemap_url)
         entries_resume = {}
         total_page_size = 0
 
-        for entry in self.log_entries:
+        for entry in har_file_data.log_entries:
 
             mime_type = entry['response']['content']['mimeType'].split(";")[0]
 
@@ -56,10 +69,10 @@ class HarFileParser:
                 entries_resume[mime_type]['total_time'] = 0
             started_date_time = datetime.strptime(entry['startedDateTime'].rsplit("+", 1)[0], "%Y-%m-%dT%H:%M:%S.%fZ")
 
-            if started_date_time < self.lower_datetime:
-                self.lower_datetime = started_date_time
-            if started_date_time > self.higher_datetime:
-                self.higher_datetime = started_date_time
+            if started_date_time < har_file_data.lower_datetime:
+                har_file_data.lower_datetime = started_date_time
+            if started_date_time > har_file_data.higher_datetime:
+                har_file_data.higher_datetime = started_date_time
 
             entry_info = {
                 'url': entry['request']['url'],
@@ -77,11 +90,12 @@ class HarFileParser:
             # se puede incluir desglose de tiempos:
             # blocked', 'ssl', 'connect', 'receive', 'send', 'comment', 'wait', 'dns'
             total_page_size += entry_info['total_size']  # size in MB
+        har_file_data.entries_resume = entries_resume
+        har_file_data.total_page_size = total_page_size
+        har_file_data.dom_content_loaded = self._get_dom_content_loaded_time(driver)
+        return har_file_data
 
-        return entries_resume, total_page_size
-
-    @staticmethod
-    def get_dom_content_loaded_time(driver):
+    def _get_dom_content_loaded_time(self, driver):
         script = 'return window.performance.timing.domContentLoadedEventStart' \
                  ' - window.performance.timing.navigationStart;'
         return driver.execute_script(script)
@@ -134,19 +148,24 @@ class HarFileParser:
                         'time': round(entry['time'], 3)}
                     )
 
-    def resume_to_csv(self, total_page_size, dom_content_loaded):
-        file_path = '{}-resume-urls.csv'.format(self.sitemap_domain)
+    def summary_results(self, results):
+        from prettytable import from_csv
+        file_path = 'resume-urls.csv'#.format(self.sitemap_domain)
         file_exists = self.check_file_existence(file_path)
-        with open(file_path, 'a+', newline='') as csv_file:
+        with open(file_path, 'w') as csv_file:
             field_names = ['page_url', 'num_entries', 'total_size', 'finish_time', 'domcontent_loaded', 'load_time']
-            writer = csv.DictWriter(sys.stdout, fieldnames=field_names)
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
             if not file_exists:
                 writer.writeheader()
-            writer.writerow({
-                'page_url': self.url,
-                'num_entries': self.num_entries,
-                'total_size': round(total_page_size, 3),
-                'finish_time': self.finish_time,
-                'domcontent_loaded': dom_content_loaded,
-                'load_time': self.load_time,
-            })
+            for result in results:
+                writer.writerow({
+                    'page_url': result.url,
+                    'num_entries': result.num_entries,
+                    'total_size': round(result.total_page_size, 3),
+                    'finish_time': result.finish_time,
+                    'domcontent_loaded': result.dom_content_loaded,
+                    'load_time': result.load_time,
+                })
+        with open(file_path, 'r') as csv_file:
+            mytable = from_csv(csv_file)
+            print(mytable)

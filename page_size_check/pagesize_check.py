@@ -1,14 +1,12 @@
-import csv
 import logging
 import click
 import requests
-import threading
+from itertools import repeat
 from concurrent.futures import ThreadPoolExecutor
 from browsermobproxy import Server
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
-from urllib.parse import urlparse
 from xvfbwrapper import Xvfb
 
 from page_size_check.parser import HarFileParser
@@ -57,7 +55,7 @@ def get_sitemap_urls(sitemap_url, server, firefox_driver_path):
     return urls
 
 
-def execute_parser(url_info):
+def execute_parser(results, url_info):
     page_url, server = url_info['page_url'], url_info['server']
     firefox_driver_path, sitemap_url = url_info['firefox_driver_path'], url_info['sitemap_url']
 
@@ -74,36 +72,12 @@ def execute_parser(url_info):
         logger.error("Error processing \"{}\" url".format(page_url))
 
     try:
-        har_file_parser = HarFileParser(page_url, proxy.har, sitemap_url)
-        entries_resume, total_page_size = har_file_parser.parse_log_entries()
-        dom_content_loaded = har_file_parser.get_dom_content_loaded_time(driver)
+        har_file_parser = HarFileParser()
+        har_file_data = har_file_parser.parse(proxy.har, page_url, sitemap_url, driver)
+        results.append(har_file_data)
     except Exception as ex:
         logger.exception(ex)
     driver.quit()
-    # with threading.Lock():
-    #     har_file_parser.resources_to_csv(entries_resume)
-    # with threading.Lock():
-    #     har_file_parser.mimetype_resources_to_csv(entries_resume, total_page_size)
-    logger.info("Printing results...")
-    with threading.Lock():
-        har_file_parser.resume_to_csv(total_page_size, dom_content_loaded)
-
-
-def resume_to_csv(self, total_page_size, dom_content_loaded):
-    file_path = '{}-resume-urls.csv'.format(self.sitemap_domain)
-    # file_exists = self.check_file_existence(file_path)
-    with open(file_path, 'a+', newline='') as csv_file:
-        field_names = ['page_url', 'num_entries', 'total_size', 'finish_time', 'domcontent_loaded', 'load_time']
-        writer = csv.DictWriter(csv_file, fieldnames=field_names)
-        writer.writeheader()
-        writer.writerow({
-            'page_url': self.url,
-            'num_entries': self.num_entries,
-            'total_size': round(total_page_size, 3),
-            'finish_time': self.finish_time,
-            'domcontent_loaded': dom_content_loaded,
-            'load_time': self.load_time,
-        })
 
 
 @click.command()
@@ -117,9 +91,14 @@ def resume_to_csv(self, total_page_size, dom_content_loaded):
 def run(sitemap_url, browsermob_server_path, browsermob_server_port, firefox_driver_path, threads):
     display, server = start_server_display(browsermob_server_path, browsermob_server_port)
     sitemap_urls = get_sitemap_urls(sitemap_url, server, firefox_driver_path)
+    results = []
     try:
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            executor.map(execute_parser, sitemap_urls)
+            executor.map(execute_parser, repeat(results), sitemap_urls)
+        logger.info("URLs processed: {}".format(len(results)))
+        har_file_parser = HarFileParser()
+        har_file_parser.summary_results(results)
+        har_file_parser.summary_results(results)
     except KeyboardInterrupt:
         logger.info("Stopping BrowserMob server...")
         server.stop()

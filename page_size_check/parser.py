@@ -1,4 +1,3 @@
-import sys
 import csv
 from datetime import datetime, timedelta
 from haralyzer import HarPage
@@ -133,13 +132,11 @@ class HarFileParser:
         TODO: review
         """
         file_path = '{}-mimetype-resources.csv'.format(self.sitemap_domain)
-        file_exists = self.check_file_existence(file_path)
         with open(file_path, 'a+', newline='') as csv_file:
             field_names = ['page_url', 'mime_type', 'n_entries', 'total_size', 'average_size', 'percentage_size',
                            'total_time', 'average_time']
-            writer = csv.DictWriter(sys.stdout, fieldnames=field_names)
-            if not file_exists:
-                writer.writeheader()
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            writer.writeheader()
 
             for mime_type, entries in entries_resume.items():
                 average_size = round(entries['total_size']/len(entries['entries']), 3)
@@ -161,12 +158,10 @@ class HarFileParser:
         TODO: review
         """
         file_path = '{}-resources-list.csv'.format(self.sitemap_domain)
-        file_exists = self.check_file_existence(file_path)
         with open(file_path, 'a+', newline='') as csv_file:
             field_names = ['page_url', 'resource_url', 'mime_type', 'size', 'time']
-            writer = csv.DictWriter(sys.stdout, fieldnames=field_names)
-            if not file_exists:
-                writer.writeheader()
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
+            writer.writeheader()
 
             for mime_type, entries in entries_resume.items():
                 for entry in entries['entries']:
@@ -230,4 +225,3 @@ class HarFileParser:
                                         "total_load_time_avg (ms)"]
             totals_table.add_row([page_size_sum, page_load_time_avg, total_size_sum, total_load_time_avg])
             print(totals_table)
-

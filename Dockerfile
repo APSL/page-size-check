@@ -1,4 +1,3 @@
-#FROM python:3.6.4
 FROM ubuntu:xenial-20181005
 
 RUN apt-get update -qq

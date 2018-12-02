@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 def start_server_display(browsermob_server_path, browsermob_server_port):
     """
-    TODO: document
+    Method to start the virtual screen where the browsers are going to be displayed and to start the Browsermob Server
+    :param browsermob_server_path: Path of the browsermob server
+    :param browsermob_server_port: Port where the browsermob server will be launched
+    :return:
     """
     logger.info("Running BrowserMob server...")
     display = Xvfb()
@@ -30,13 +33,16 @@ def start_server_display(browsermob_server_path, browsermob_server_port):
 
 def start_proxy_driver(server, firefox_driver_path):
     """
-    TODO: document
+    Method to start the proxy where we are going to read the HarFile and the driver to open the urls
+    :param server: Browsermob server
+    :param firefox_driver_path: Path of the geckodriver of firefox
+    :return:
     """
     proxy = server.create_proxy()
 
     profile = webdriver.FirefoxProfile()
     selenium_proxy = proxy.selenium_proxy()
-    profile.set_proxy(selenium_proxy)  # TODO: check deprecation
+    profile.set_proxy(selenium_proxy)
     driver = webdriver.Firefox(firefox_profile=profile, executable_path=firefox_driver_path)
 
     return proxy, driver
@@ -44,7 +50,11 @@ def start_proxy_driver(server, firefox_driver_path):
 
 def get_sitemap_urls(sitemap_url, server, firefox_driver_path):
     """
-    TODO: document
+    Method that gets the urls to be parsed
+    :param sitemap_url: The url of the sitemap of the web that is going to be analized
+    :param server: Browsermob server
+    :param firefox_driver_path: Path of the geckodriver of firefox
+    :return:
     """
     logger.info("Getting sitemap entries for \"{}\"".format(sitemap_url))
     if not sitemap_url:
@@ -60,11 +70,17 @@ def get_sitemap_urls(sitemap_url, server, firefox_driver_path):
             'firefox_driver_path': firefox_driver_path,
             'sitemap_url': sitemap_url,
         })
-    logger.debug("Urls parsed: {}".format(len(urls)))
+    logger.info("Urls parsed: {}".format(len(urls)))
     return urls
 
 
 def execute_parser(results, url_info):
+    """
+    Method to load the page on the browser, get the HarFile and parse its data
+    :param results: Array where the parsed data is stored
+    :param url_info: Information of the url to be analyzed
+    :return:
+    """
     page_url, server = url_info['page_url'], url_info['server']
     firefox_driver_path, sitemap_url = url_info['firefox_driver_path'], url_info['sitemap_url']
 
@@ -84,6 +100,7 @@ def execute_parser(results, url_info):
         har_file_parser = HarFileParser()
         har_file_data = har_file_parser.parse(proxy.har, page_url, sitemap_url, driver)
         results.append(har_file_data)
+        logger.info("\"{}\" parsed!".format(page_url))
     except Exception as ex:
         logger.exception(ex)
     driver.quit()
@@ -98,7 +115,9 @@ def execute_parser(results, url_info):
 @click.option('--sitemap_url', help='Sitemap to get urls.')
 @click.option('--threads', default=8, help='Number of threads.')
 @click.option('--display_summary', default=True, help='If true displays the results summary to the stdout.')
-def run(sitemap_url, browsermob_server_path, browsermob_server_port, firefox_driver_path, threads, display_summary):
+@click.option('--generate_extra_csv', default=True, help='If true generates extra information in CSVs')
+def run(sitemap_url, browsermob_server_path, browsermob_server_port, firefox_driver_path, threads,
+        display_summary, generate_extra_csv):
     display, server = start_server_display(browsermob_server_path, browsermob_server_port)
     sitemap_urls = get_sitemap_urls(sitemap_url, server, firefox_driver_path)
     results = []
@@ -109,6 +128,9 @@ def run(sitemap_url, browsermob_server_path, browsermob_server_port, firefox_dri
         if results:
             har_file_parser = HarFileParser()
             har_file_parser.get_summary(results, display_summary)
+            if generate_extra_csv:
+                har_file_parser.resources_to_csv(results)
+                har_file_parser.mimetype_resources_to_csv(results)
     except KeyboardInterrupt:
         logger.info("Stopping BrowserMob server...")
         server.stop()

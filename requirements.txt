@@ -2,6 +2,7 @@ beautifulsoup4==4.6.3
 browsermob-proxy==0.8.0
 click==6.7
 haralyzer==1.5.0
+PTable==0.9.2
 pytest==3.9.1
 pytest-eradicate==0.0.3
 pytest-flake8==1.0.2

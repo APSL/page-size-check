@@ -7,7 +7,7 @@ from prettytable import from_csv, PrettyTable
 
 class HarFileData:
     """
-    TODO: document
+    Data Structure of the information extracted from the HarFile
     """
     page_url = ""
     log_entries = []
@@ -22,28 +22,28 @@ class HarFileData:
     @property
     def num_entries(self):
         """
-        TODO: document
+        Provides the number of entries on the HarFile
         """
         return len(self.log_entries)
 
     @property
     def finish_time(self):
         """
-        TODO: document
+        Time between the first and the last entry of the page
         """
         return (self.higher_datetime-self.lower_datetime).total_seconds() * 1000
 
     @property
     def load_time(self):
         """
-        TODO: document
+        T​ime that takes to download and display the entire content of a web page in the browser window
         """
         return self.har_page.get_load_time()
 
 
 class HarFileParser:
     """
-    TODO: document
+    Parser of the HarFile
     """
 
     def _pre_parse(self, har_file_data, har_file, page_url, sitemap_url):
@@ -66,7 +66,7 @@ class HarFileParser:
         har_file_data.higher_datetime = datetime.now() - timedelta(hours=1)
         har_file_data.sitemap_domain = urlparse(sitemap_url).netloc
 
-    def parse(self, har_file, page_url, sitemap_url, driver):
+    def parse(self, har_file, page_url, sitemap_url, driver=None):
         """
         Parse HarFile to a HarFileData structure
 
@@ -89,7 +89,7 @@ class HarFileParser:
                 entries_resume[mime_type]['entries'] = []
                 entries_resume[mime_type]['total_size'] = 0
                 entries_resume[mime_type]['total_time'] = 0
-            started_date_time = datetime.strptime(entry['startedDateTime'].rsplit("+", 1)[0], "%Y-%m-%dT%H:%M:%S.%fZ")
+            started_date_time = datetime.strptime(entry['startedDateTime'].rsplit("+", 1)[0], "%Y-%m-%dT%H:%M:%S.%f")
 
             if started_date_time < har_file_data.lower_datetime:
                 har_file_data.lower_datetime = started_date_time
@@ -109,69 +109,80 @@ class HarFileParser:
             entries_resume[mime_type]['entries'].append(entry_info)
             entries_resume[mime_type]['total_size'] += entry_info['total_size']  # size in MB
             entries_resume[mime_type]['total_time'] += entry_info['time']  # time in ms
-            # se puede incluir desglose de tiempos:
+            # More detailed times can be included:
             # blocked', 'ssl', 'connect', 'receive', 'send', 'comment', 'wait', 'dns'
             total_page_size += entry_info['total_size']
         har_file_data.entries_resume = entries_resume
         har_file_data.total_page_size = total_page_size / 1024  # size in MB
-        har_file_data.dom_content_loaded = self._get_dom_content_loaded_time(driver)
+        if driver:
+            har_file_data.dom_content_loaded = self._get_dom_content_loaded_time(driver)
         return har_file_data
 
     def _get_dom_content_loaded_time(self, driver):
         """
-        TODO: document
-        :param driver:
+        Method to get the dom content loaded time using JS at the browser
+        :param driver: Browser which the webpage that is beig analized
         :return:
         """
         script = 'return window.performance.timing.domContentLoadedEventStart' \
                  ' - window.performance.timing.navigationStart;'
         return driver.execute_script(script)
 
-    def mimetype_resources_to_csv(self, entries_resume, total_page_size):
+    @staticmethod
+    def mimetype_resources_to_csv(results):
         """
-        TODO: review
+        Generate a CSV with a resume of the resources by mimetype used by the webpage
+
+        :param list results: list of HarFileData
         """
-        file_path = '{}-mimetype-resources.csv'.format(self.sitemap_domain)
+        file_path = '{}-mimetype-resources.csv'.format(results[0].sitemap_domain)
         with open(file_path, 'a+', newline='') as csv_file:
             field_names = ['page_url', 'mime_type', 'n_entries', 'total_size', 'average_size', 'percentage_size',
                            'total_time', 'average_time']
             writer = csv.DictWriter(csv_file, fieldnames=field_names)
             writer.writeheader()
 
-            for mime_type, entries in entries_resume.items():
-                average_size = round(entries['total_size']/len(entries['entries']), 3)
-                average_time = round(entries['total_time']/len(entries['entries']), 3)
-                percentage_size = round((entries['total_size']/total_page_size) * 100, 3)
-                writer.writerow({
-                    'page_url': self.url,
-                    'mime_type': mime_type,
-                    'n_entries': len(entries['entries']),
-                    'total_size': round(entries['total_size'], 3),
-                    'average_size': average_size,
-                    'percentage_size': percentage_size,
-                    'total_time': entries['total_time'],
-                    'average_time': average_time
-                })
+            for result in results:
+                for mime_type, entries in result.entries_resume.items():
+                    total_page_size = round(result.entries_resume['text/html']['total_size'], 3)
 
-    def resources_to_csv(self, entries_resume):
+                    average_size = round(entries['total_size']/len(entries['entries']), 3)
+                    average_time = round(entries['total_time']/len(entries['entries']), 3)
+                    percentage_size = round((entries['total_size']/total_page_size) * 100, 3)
+                    writer.writerow({
+                        'page_url': result.page_url,
+                        'mime_type': mime_type,
+                        'n_entries': len(entries['entries']),
+                        'total_size': round(entries['total_size'], 3),
+                        'average_size': average_size,
+                        'percentage_size': percentage_size,
+                        'total_time': entries['total_time'],
+                        'average_time': average_time
+                    })
+
+    @staticmethod
+    def resources_to_csv(results):
         """
-        TODO: review
+        Generate a CSV with a list of the resources used by the webpage
+
+        :param list results: list of HarFileData
         """
-        file_path = '{}-resources-list.csv'.format(self.sitemap_domain)
+        file_path = '{}-resources-list.csv'.format(results[0].sitemap_domain)
         with open(file_path, 'a+', newline='') as csv_file:
             field_names = ['page_url', 'resource_url', 'mime_type', 'size', 'time']
             writer = csv.DictWriter(csv_file, fieldnames=field_names)
             writer.writeheader()
 
-            for mime_type, entries in entries_resume.items():
-                for entry in entries['entries']:
-                    writer.writerow({
-                        'page_url': self.url,
-                        'mime_type': mime_type,
-                        'resource_url': entry['url'],
-                        'size': round(entry['total_size'], 3),
-                        'time': round(entry['time'], 3)}
-                    )
+            for result in results:
+                for mime_type, entries in result.entries_resume.items():
+                    for entry in entries['entries']:
+                        writer.writerow({
+                            'page_url': result.page_url,
+                            'mime_type': mime_type,
+                            'resource_url': entry['url'],
+                            'size': round(entry['total_size'], 3),
+                            'time': round(entry['time'], 3)}
+                        )
 
     def get_summary(self, results, display_summary):
         """
@@ -214,7 +225,7 @@ class HarFileParser:
             page_load_time_avg = round(page_load_time_avg / len(results), 3)
             total_load_time_avg = round(total_load_time_avg / len(results), 3)
         if display_summary:
-            # Print the CSV in table format
+            # Print the CSV in table format (prettytables don't allow the use of sys.stdout.write)
             with open(file_path, 'r') as csv_file:
                 summary_table = from_csv(csv_file)
                 print(summary_table)

@@ -51,6 +51,7 @@ setup(
         'haralyzer==1.5.0',
         'selenium==3.14.0',
         'xvfbwrapper==0.2.9',
+        'PTable==0.9.2'
     ],
     classifiers=[
         'Environment :: Console',
@@ -62,5 +63,10 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries :: Python Modules'
-    ]
+    ],
+    entry_points={
+        'console_scripts': [
+            'page_size_check = page_size_check.pagesize_check:run',
+        ]
+    }
 )

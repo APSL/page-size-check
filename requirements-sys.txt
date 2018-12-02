@@ -1,2 +1,7 @@
-default-jre
+wget
+zip
 xvfb
+default-jre
+firefox
+python3
+python3-pip

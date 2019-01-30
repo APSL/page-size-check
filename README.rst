@@ -18,7 +18,7 @@ Installation with PyPI
 
 #. Installation ::
 
-pip install page-size-check
+    pip install page-size-check
 
 #. Download ::
 
@@ -27,7 +27,7 @@ pip install page-size-check
 
 #. Execution ::
 
-    pagesize_check --sitemap_url="sitemap.url" [--help]
+    page_size_check --sitemap_url="sitemap.url" [--help]
 
 #. Output ::
 

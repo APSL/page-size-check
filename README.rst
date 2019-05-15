@@ -54,6 +54,7 @@ parameters that you can set:
 --sitemap_url TEXT             Sitemap to get urls.
 --threads INTEGER              Number of threads.
 --display_summary BOOLEAN      If true displays the results summary to the stdout.
+--generate_extra_csv BOOLEAN   If true generates extra csv with resume information
 --help                         Show this message and exit.
 
 Contributing

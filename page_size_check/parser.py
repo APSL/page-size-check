@@ -227,7 +227,7 @@ class HarFileParser:
         if display_summary:
             # Print the CSV in table format (prettytables don't allow the use of sys.stdout.write)
             with open(file_path, 'r') as csv_file:
-                summary_table = from_csv(csv_file)
+                summary_table = from_csv(csv_file, delimiter=',')
                 print(summary_table)
 
             # Print the totals in table format
